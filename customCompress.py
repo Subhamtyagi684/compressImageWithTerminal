@@ -1,12 +1,8 @@
-from pickletools import optimize
 from PIL import Image
 import PIL.Image
 import os
-import io
-from io import BytesIO
 import argparse
 import sys
-import base64
 
 
 custom_width = 400
@@ -25,19 +21,6 @@ def getQuality(img):
         quality = 50;
     return quality;
 
-
-def get_size_format(b, factor=1024, suffix="B"):
-    """
-    Scale bytes to its proper byte format
-    e.g:
-        1253656 => '1.20MB'
-        1253656678 => '1.17GB'
-    """
-    for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
-        if b < factor:
-            return f"{b:.2f}{unit}{suffix}"
-        b /= factor
-    return f"{b:.2f}Y{suffix}"
      
 def resize_image(origImage,reqWidth,reqHeight):
     srcWidth = origImage.size[0];
@@ -52,14 +35,22 @@ def resize_image(origImage,reqWidth,reqHeight):
     vals = [x,y,finalWidth+x,finalHeight+y];
     return vals;
 
-def get_image(image_path,resized_path=None,width=None,height=None):
+def get_image(obj):
     my_image = None;
-    
+    width = obj['width'];
+    height = obj['height']
+    image_path = obj['src'];
+    dest_path = str(obj['dest']);
+    if not dest_path.endswith('/'):
+        dest_path+='/' 
+
+    image_name = str(image_path).split("/")[-1];
+    ext = obj['type']
     try:
         with Image.open(image_path) as image:
             my_image = image.copy();
     except Exception as e:
-        print("Something went wrong",e);
+        print("Something went wrong:",'{',e,'}');
         return;
 
     if(my_image!=None):
@@ -69,19 +60,10 @@ def get_image(image_path,resized_path=None,width=None,height=None):
         upper = getResizingDimensions[1];
         fwidth = getResizingDimensions[2];
         fheight = getResizingDimensions[3];
-
-
-        filename, ext = os.path.splitext(image_path)
-        print(filename,ext);
-        # if(resized_path and (ext in ['png', 'jpg', 'jpeg'])):
-        #     new_filename = resized_path;
-        # else:
-        #     print("Please provide upload path");
-        #     return ;
-
-        # z = my_image.crop((top,upper,fwidth,fheight)).resize((width,height),resample=PIL.Image.ADAPTIVE).convert("RGB");
-        # z.save(new_filename,ext,quality=getQuality(z),optimize=True);
-        # print("[+] New file saved:", new_filename);
+        filename, dext = os.path.splitext(image_name)
+        z = my_image.crop((top,upper,fwidth,fheight)).resize((width,height),resample=PIL.Image.ADAPTIVE).convert("RGB");
+        z.save(f"{dest_path}{filename}_compressed.{ext}",ext,quality=getQuality(z),optimize=True);
+        print("[+] New file saved:");
     return;
 
 
@@ -90,13 +72,35 @@ if(__name__=="__main__"):
     parser.add_argument("src", help="Target image to compress and/or resize")
     parser.add_argument("dest", help="Path to upload compressed and/or resized image")
     parser.add_argument("-t", "--type", type=str, help="Extension to save image after compression",default="webp")
-    parser.add_argument("-w", "--width", type=int, help="The new width image, make sure to set it with the `height` parameter")
-    parser.add_argument("-hh", "--height", type=int, help="The new height for the image, make sure to set it with the `width` parameter")
-    args = parser.parse_args();
-    print(list(map(lambda x: x, vars(args))));
+    parser.add_argument("-width", "--width", type=int, help="The new width image, make sure to set it with the `height` parameter")
+    parser.add_argument("-height", "--height", type=int, help="The new height for the image, make sure to set it with the `width` parameter")
+    args = vars(parser.parse_args());
+    width = args['width']
+    while(width==None):
+        cust_width = input("Enter the width to resize image: ")
+        if(cust_width.isnumeric()):
+            args['width'] = cust_width;
+            width = cust_width;
+        else:
+            print("Please provide width in numbers only")
+    
+    height = args['height']
+    while(height==None):
+        cust_height = input("Enter the height to resize image: ")
+        if(cust_height.isnumeric()):
+            args['height']= cust_height;
+            height = cust_height
+        else:
+            print("Please provide height in numbers only")
+
+    if(args['type']!="webp" and (args['type'] not in ['jpg','jpeg','png'])):
+        print("Please check your type of extension again")
+        exit();
+    
+    print(args)
+
     x = input("Are you sure to execute function with above details :  (yes/no) ")
     if(x in ['y','yes',"Yes","yES","YES"]):
-        print("Now execute the function");
-        # get_image(download_path,upload_path);
+        get_image(args);
     else:
         print("Successfully exited.");
