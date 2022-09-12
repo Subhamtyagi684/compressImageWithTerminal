@@ -1,0 +1,6 @@
+.aws
+.env
+venv
+mydevelopmentpackage.zip
+.git
+.DS_Store
